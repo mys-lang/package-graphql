@@ -1,0 +1,8 @@
+@trait
+class Document:
+    pass
+
+func parse(document: string) -> Document:
+    """Parse given document.
+
+    """
