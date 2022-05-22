@@ -1,17 +1,17 @@
 @trait
-class Token:
+class _Token:
     pass
 
-class ParenToken(Token):
+class _ParenToken(_Token):
     value: char
 
-class NumberToken(Token):
+class _NumberToken(_Token):
     value: string
 
-class StringToken(Token):
+class _StringToken(_Token):
     value: string
 
-class NameToken(Token):
+class _NameToken(_Token):
     value: string
 
 @trait
@@ -41,16 +41,14 @@ class Field(Node):
 class Argument(Node):
     name: string
 
-func tokenize(document: string) -> [Token]:
-    """Tokenize given document.
-
-    """
-
+func _tokenize(document: string) -> [_Token]:
     raise NotImplementedError()
 
 func parse(document: string) -> Document:
     """Parse given document.
 
     """
+
+    tokens = _tokenize(document)
 
     raise NotImplementedError()
