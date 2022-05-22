@@ -1,9 +1,35 @@
 @trait
-class Document:
+class Node:
     pass
 
-func parse(document: string) -> Document:
-    """Parse given document.
+class ExecutableDocument(Node):
+    executable_definition: [ExecutableDefinition]
+
+class ExecutableDefinition(Node):
+    operation_definition: OperationDefinition
+
+class OperationDefinition(Node):
+    selection_set: SelectionSet
+
+class SelectionSet(Node):
+    selection: [Selection]
+
+class Selection(Node):
+    field: Field
+
+class Field(Node):
+    name: string
+    arguments: Arguments
+    selection_set: SelectionSet
+
+class Arguments(Node):
+    argument: [Argument]
+
+class Argument(Node):
+    name: string
+
+func parse_executable_document(executable_document: string) -> ExecutableDocument:
+    """Parse given executable document.
 
     """
 
