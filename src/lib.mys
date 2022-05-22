@@ -1,17 +1,25 @@
+from string import StringReader
+
+class GraphqlError(Error):
+    message: string
+
 @trait
 class _Token:
     pass
 
-class _ParenToken(_Token):
+class _Punctuator(_Token):
     value: char
 
-class _NumberToken(_Token):
+class _Name(_Token):
     value: string
 
-class _StringToken(_Token):
+class _IntValue(_Token):
     value: string
 
-class _NameToken(_Token):
+class _FloatValue(_Token):
+    value: string
+
+class _StringValue(_Token):
     value: string
 
 @trait
@@ -41,8 +49,80 @@ class Field(Node):
 class Argument(Node):
     name: string
 
+func _tokenize_name(reader: StringReader) -> _Token:
+    name = ""
+
+    while True:
+        ch = reader.get()
+
+        if ch.is_alpha():
+            name += ch
+        else:
+            if ch != '':
+                reader.unget()
+
+            break
+
+    return _Name(name)
+
+func _tokenize_number(reader: StringReader) -> _Token:
+    value = ""
+
+    while True:
+        ch = reader.get()
+
+        if ch.is_digit():
+            value += ch
+        else:
+            if ch != '':
+                reader.unget()
+
+            break
+
+    return _IntValue(value)
+
+func _tokenize_string(reader: StringReader) -> _Token:
+    value = ""
+
+    while True:
+        ch = reader.get()
+
+        if ch == '\"':
+            break
+        elif ch == '':
+            raise GraphqlError("No end of string.")
+        else:
+            value += ch
+
+    return _StringValue(value)
+
 func _tokenize(document: string) -> [_Token]:
-    raise NotImplementedError()
+    reader = StringReader(document)
+    tokens: [_Token] = []
+
+    while True:
+        ch = reader.get()
+
+        if ch in ",\t\r\n ":
+            continue
+        elif ch in "!$&():=@[]{|}":
+            tokens.append(_Punctuator(ch))
+        elif ch == '.':
+            raise GraphqlError(f"Unsupported character '{ch}'")
+        elif ch == '-' or ch.is_digit():
+            reader.unget()
+            tokens.append(_tokenize_number(reader))
+        elif ch == '\"':
+            tokens.append(_tokenize_string(reader))
+        elif ch.is_alpha():
+            reader.unget()
+            tokens.append(_tokenize_name(reader))
+        elif ch == '':
+            break
+        else:
+            raise GraphqlError(f"Invalid character '{ch}'")
+
+    return tokens
 
 func parse(document: string) -> Document:
     """Parse given document.
@@ -51,4 +131,18 @@ func parse(document: string) -> Document:
 
     tokens = _tokenize(document)
 
-    raise NotImplementedError()
+    for token in tokens:
+        print(token)
+
+    return Document([])
+
+@test
+func test_parse():
+    document = parse("{\n"
+                     "  foo(limit: 10, name: \"kalle\") {\n"
+                     "    id\n"
+                     "    name\n"
+                     "    value\n"
+                     "  }\n"
+                     "}")
+    assert len(document.definitions) == 1

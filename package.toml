@@ -3,3 +3,6 @@ name = "graphql"
 version = "0.3.0"
 authors = ["Erik Moqvist <erik.moqvist@gmail.com>"]
 description = "GraphQL."
+
+[dependencies]
+string = "latest"
