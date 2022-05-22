@@ -1,35 +1,55 @@
 @trait
+class Token:
+    pass
+
+class ParenToken(Token):
+    value: char
+
+class NumberToken(Token):
+    value: string
+
+class StringToken(Token):
+    value: string
+
+class NameToken(Token):
+    value: string
+
+@trait
 class Node:
     pass
 
-class ExecutableDocument(Node):
-    executable_definition: [ExecutableDefinition]
+class Document(Node):
+    definitions: [Definition]
+
+class Definition(Node):
+    executable_definition: ExecutableDefinition
 
 class ExecutableDefinition(Node):
     operation_definition: OperationDefinition
 
 class OperationDefinition(Node):
-    selection_set: SelectionSet
-
-class SelectionSet(Node):
-    selection: [Selection]
+    selections: [Selection]
 
 class Selection(Node):
     field: Field
 
 class Field(Node):
     name: string
-    arguments: Arguments
-    selection_set: SelectionSet
-
-class Arguments(Node):
-    argument: [Argument]
+    arguments: [Argument]
+    selections: [Selection]
 
 class Argument(Node):
     name: string
 
-func parse_executable_document(executable_document: string) -> ExecutableDocument:
-    """Parse given executable document.
+func tokenize(document: string) -> [Token]:
+    """Tokenize given document.
+
+    """
+
+    raise NotImplementedError()
+
+func parse(document: string) -> Document:
+    """Parse given document.
 
     """
 
