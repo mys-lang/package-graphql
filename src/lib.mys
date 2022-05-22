@@ -137,7 +137,7 @@ func parse(document: string) -> Document:
     return Document([])
 
 @test
-func test_parse():
+func test_parse_query():
     document = parse("{\n"
                      "  foo(limit: 10, name: \"kalle\") {\n"
                      "    id\n"
