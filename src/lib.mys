@@ -1,4 +1,5 @@
 from string import StringReader
+from string import pretty
 
 class GraphqlError(Error):
     message: string
@@ -39,33 +40,29 @@ class _Tokens:
         return self._tokens[self._pos - 1]
 
     func peek(self) -> _Token:
-        return self._tokens[self._pos - 1]
+        return self._tokens[self._pos]
 
-@trait
-class Node:
-    pass
-
-class Document(Node):
+class Document:
     definitions: [Definition]
 
-class Definition(Node):
+class Definition:
     executable_definition: ExecutableDefinition
 
-class ExecutableDefinition(Node):
+class ExecutableDefinition:
     operation_definition: OperationDefinition
 
-class OperationDefinition(Node):
+class OperationDefinition:
     selections: [Selection]
 
-class Selection(Node):
+class Selection:
     field: Field
 
-class Field(Node):
+class Field:
     name: string
     arguments: [Argument]
     selections: [Selection]
 
-class Argument(Node):
+class Argument:
     name: string
 
 func _tokenize_name(reader: StringReader) -> _Token:
@@ -146,6 +143,100 @@ func _tokenize(document: string) -> _Tokens:
 
     return _Tokens(tokens)
 
+func _parse_arguments(tokens: _Tokens) -> [Argument]:
+    match tokens.peek():
+        case _Punctuator(value='('):
+            pass
+        case _:
+            return None
+
+    tokens.get()
+    arguments = []
+
+    while True:
+        match tokens.get():
+            case _Name() as name_token:
+                arguments.append(Argument(name_token.value))
+
+                match tokens.get():
+                    case _Punctuator(value=':'):
+                        pass
+                    case _:
+                        raise GraphqlError("No :.")
+
+                tokens.get()
+            case _Punctuator(value=')'):
+                break
+            case _:
+                raise GraphqlError("No ).")
+
+    return arguments
+
+func _parse_name(tokens: _Tokens) -> string:
+    match tokens.get():
+        case _Name() as name_token:
+            return name_token.value
+        case _:
+            return None
+
+func _parse_field(tokens: _Tokens) -> Field:
+    name = _parse_name(tokens)
+
+    if name is None:
+        return None
+
+    arguments = _parse_arguments(tokens)
+    selections = _parse_selection_set(tokens)
+
+    return Field(name, arguments, selections)
+
+func _parse_selection(tokens: _Tokens) -> Selection:
+    return Selection(_parse_field(tokens))
+
+func _parse_selection_set(tokens: _Tokens) -> [Selection]:
+    selections: [Selection] = []
+
+    match tokens.peek():
+        case _Punctuator(value='{'):
+            pass
+        case _:
+            return None
+
+    tokens.get()
+
+    while True:
+        match tokens.peek():
+            case _Punctuator(value='}'):
+                break
+
+        selection = _parse_selection(tokens)
+
+        if selection is None:
+            return None
+
+        selections.append(selection)
+
+    tokens.get()
+
+    return selections
+
+func _parse_operation_definition(tokens: _Tokens) -> OperationDefinition:
+    return OperationDefinition(_parse_selection_set(tokens))
+
+func _parse_executable_definition(tokens: _Tokens) -> ExecutableDefinition:
+    return ExecutableDefinition(_parse_operation_definition(tokens))
+
+func _parse_definition(tokens: _Tokens) -> Definition:
+    return Definition(_parse_executable_definition(tokens))
+
+func _parse_document(tokens: _Tokens) -> Document:
+    document = Document([])
+
+    while tokens.available():
+        document.definitions.append(_parse_definition(tokens))
+
+    return document
+
 func parse(document: string) -> Document:
     """Parse given document.
 
@@ -153,18 +244,39 @@ func parse(document: string) -> Document:
 
     tokens = _tokenize(document)
 
-    while tokens.available():
-        print(tokens.get())
-
-    return Document([])
+    return _parse_document(tokens)
 
 @test
 func test_parse_query():
-    document = parse("{\n"
+    document = parse("\t\r"
+                     "{\n"
                      "  foo(id: 10, name: \"kalle\") {\n"
                      "    id\n"
                      "    name\n"
                      "    value\n"
                      "  }\n"
                      "}")
-    assert len(document.definitions) == 0
+    assert len(document.definitions) == 1
+    selections = (document
+                  .definitions[0]
+                  .executable_definition
+                  .operation_definition
+                  .selections)
+    assert len(selections) == 1
+    selection = selections[0]
+    assert selection.field.name == "foo"
+    arguments = selection.field.arguments
+    assert len(arguments) == 2
+    assert arguments[0].name == "id"
+    assert arguments[1].name == "name"
+    selections = selection.field.selections
+    assert len(selections) == 3
+    assert selections[0].field.name == "id"
+    assert selections[0].field.arguments is None
+    assert selections[0].field.selections is None
+    assert selections[1].field.name == "name"
+    assert selections[1].field.arguments is None
+    assert selections[1].field.selections is None
+    assert selections[2].field.name == "value"
+    assert selections[2].field.arguments is None
+    assert selections[2].field.selections is None
