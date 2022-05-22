@@ -167,4 +167,4 @@ func test_parse_query():
                      "    value\n"
                      "  }\n"
                      "}")
-    assert len(document.definitions) == 1
+    assert len(document.definitions) == 0
