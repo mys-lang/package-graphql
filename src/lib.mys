@@ -71,7 +71,7 @@ func _tokenize_name(reader: StringReader) -> _Token:
     while True:
         ch = reader.get()
 
-        if ch.is_alpha():
+        if ch.is_alpha() or ch == '_':
             name += ch
         else:
             if ch != '':
@@ -131,7 +131,7 @@ func _tokenize(document: string) -> _Tokens:
             token = _tokenize_number(reader)
         elif ch == '\"':
             token = _tokenize_string(reader)
-        elif ch.is_alpha():
+        elif ch.is_alpha() or ch == '_':
             reader.unget()
             token = _tokenize_name(reader)
         elif ch == '':
@@ -280,3 +280,37 @@ func test_parse_query():
     assert selections[2].field.name == "value"
     assert selections[2].field.arguments is None
     assert selections[2].field.selections is None
+
+@test
+func test_spacex():
+    document = parse("{"
+                     "  launchesPast(limit: 10) {"
+                     "    mission_name"
+                     "    launch_date_local"
+                     "    launch_site {"
+                     "      site_name_long"
+                     "    }"
+                     "    ships {"
+                     "      name"
+                     "      home_port"
+                     "      image"
+                     "    }"
+                     "  }"
+                     "}")
+    assert len(document.definitions) == 1
+    selections = (document
+                  .definitions[0]
+                  .executable_definition
+                  .operation_definition
+                  .selections)
+    assert len(selections) == 1
+    assert selections[0].field.name == "launchesPast"
+    selections = selections[0].field.selections
+    assert selections[0].field.name == "mission_name"
+    assert selections[1].field.name == "launch_date_local"
+    assert selections[2].field.name == "launch_site"
+    assert selections[2].field.selections[0].field.name == "site_name_long"
+    assert selections[3].field.name == "ships"
+    assert selections[3].field.selections[0].field.name == "name"
+    assert selections[3].field.selections[1].field.name == "home_port"
+    assert selections[3].field.selections[2].field.name == "image"
