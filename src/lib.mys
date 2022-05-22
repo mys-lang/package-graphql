@@ -22,6 +22,25 @@ class _FloatValue(_Token):
 class _StringValue(_Token):
     value: string
 
+class _Tokens:
+    _tokens: [_Token]
+    _pos: u64
+
+    func __init__(self, tokens: [_Token]):
+        self._tokens = tokens
+        self._pos = 0
+
+    func available(self) -> bool:
+        return self._pos < len(self._tokens)
+
+    func get(self) -> _Token:
+        self._pos += 1
+
+        return self._tokens[self._pos - 1]
+
+    func peek(self) -> _Token:
+        return self._tokens[self._pos - 1]
+
 @trait
 class Node:
     pass
@@ -96,8 +115,9 @@ func _tokenize_string(reader: StringReader) -> _Token:
 
     return _StringValue(value)
 
-func _tokenize(document: string) -> [_Token]:
+func _tokenize(document: string) -> _Tokens:
     reader = StringReader(document)
+    token: _Token = None
     tokens: [_Token] = []
 
     while True:
@@ -106,23 +126,25 @@ func _tokenize(document: string) -> [_Token]:
         if ch in ",\t\r\n ":
             continue
         elif ch in "!$&():=@[]{|}":
-            tokens.append(_Punctuator(ch))
+            token = _Punctuator(ch)
         elif ch == '.':
             raise GraphqlError(f"Unsupported character '{ch}'")
         elif ch == '-' or ch.is_digit():
             reader.unget()
-            tokens.append(_tokenize_number(reader))
+            token = _tokenize_number(reader)
         elif ch == '\"':
-            tokens.append(_tokenize_string(reader))
+            token = _tokenize_string(reader)
         elif ch.is_alpha():
             reader.unget()
-            tokens.append(_tokenize_name(reader))
+            token = _tokenize_name(reader)
         elif ch == '':
             break
         else:
             raise GraphqlError(f"Invalid character '{ch}'")
 
-    return tokens
+        tokens.append(token)
+
+    return _Tokens(tokens)
 
 func parse(document: string) -> Document:
     """Parse given document.
@@ -131,15 +153,15 @@ func parse(document: string) -> Document:
 
     tokens = _tokenize(document)
 
-    for token in tokens:
-        print(token)
+    while tokens.available():
+        print(tokens.get())
 
     return Document([])
 
 @test
 func test_parse_query():
     document = parse("{\n"
-                     "  foo(limit: 10, name: \"kalle\") {\n"
+                     "  foo(id: 10, name: \"kalle\") {\n"
                      "    id\n"
                      "    name\n"
                      "    value\n"
