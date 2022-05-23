@@ -79,7 +79,7 @@ func _tokenize_name(reader: StringReader) -> _Token:
     while True:
         ch = reader.get()
 
-        if ch.is_alpha() or ch == '_':
+        if ch.is_alpha() or ch.is_digit() or ch == '_':
             name += ch
         else:
             if ch != '':
@@ -201,7 +201,12 @@ func _parse_field(tokens: _Tokens) -> Field:
     return Field(name, arguments, selections)
 
 func _parse_selection(tokens: _Tokens) -> Selection:
-    return Selection(_parse_field(tokens))
+    field = _parse_field(tokens)
+
+    if field is None:
+        return None
+
+    return Selection(field)
 
 func _parse_selection_set(tokens: _Tokens) -> [Selection]:
     selections: [Selection] = []
@@ -358,3 +363,15 @@ func test_bad_definition():
         assert False
     except GraphqlError as error:
         assert error.message == "Out of tokens."
+
+@test
+func test_name():
+    document = parse("{foo_2}")
+    assert len(document.definitions) == 1
+    selections = (document
+                  .definitions[0]
+                  .executable_definition
+                  .operation_definition
+                  .selections)
+    assert len(selections) == 1
+    assert selections[0].field.name == "foo_2"
