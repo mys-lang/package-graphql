@@ -1,5 +1,4 @@
 from string import StringReader
-from string import pretty
 
 class GraphqlError(Error):
     message: string
@@ -23,6 +22,9 @@ class _FloatValue(_Token):
 class _StringValue(_Token):
     value: string
 
+class _End(_Token):
+    pass
+
 class _Tokens:
     _tokens: [_Token]
     _pos: u64
@@ -35,11 +37,17 @@ class _Tokens:
         return self._pos < len(self._tokens)
 
     func get(self) -> _Token:
+        if not self.available():
+            raise GraphqlError("Out of tokens.")
+
         self._pos += 1
 
         return self._tokens[self._pos - 1]
 
     func peek(self) -> _Token:
+        if not self.available():
+            raise GraphqlError("Out of tokens.")
+
         return self._tokens[self._pos]
 
 class Document:
@@ -141,6 +149,8 @@ func _tokenize(document: string) -> _Tokens:
 
         tokens.append(token)
 
+    # tokens.append(_End())
+
     return _Tokens(tokens)
 
 func _parse_arguments(tokens: _Tokens) -> [Argument]:
@@ -221,19 +231,39 @@ func _parse_selection_set(tokens: _Tokens) -> [Selection]:
     return selections
 
 func _parse_operation_definition(tokens: _Tokens) -> OperationDefinition:
-    return OperationDefinition(_parse_selection_set(tokens))
+    selections = _parse_selection_set(tokens)
+
+    if selections is None:
+        return None
+
+    return OperationDefinition(selections)
 
 func _parse_executable_definition(tokens: _Tokens) -> ExecutableDefinition:
-    return ExecutableDefinition(_parse_operation_definition(tokens))
+    operation_definition = _parse_operation_definition(tokens)
+
+    if operation_definition is None:
+        return None
+
+    return ExecutableDefinition(operation_definition)
 
 func _parse_definition(tokens: _Tokens) -> Definition:
-    return Definition(_parse_executable_definition(tokens))
+    executable_definition = _parse_executable_definition(tokens)
+
+    if executable_definition is None:
+        return None
+
+    return Definition(executable_definition)
 
 func _parse_document(tokens: _Tokens) -> Document:
     document = Document([])
 
     while tokens.available():
-        document.definitions.append(_parse_definition(tokens))
+        definition = _parse_definition(tokens)
+
+        if definition is None:
+            raise GraphqlError("Bad definition.")
+
+        document.definitions.append(definition)
 
     return document
 
@@ -314,3 +344,17 @@ func test_spacex():
     assert selections[3].field.selections[0].field.name == "name"
     assert selections[3].field.selections[1].field.name == "home_port"
     assert selections[3].field.selections[2].field.name == "image"
+
+@test
+func test_bad_definition():
+    try:
+        parse("{{name}}")
+        assert False
+    except GraphqlError as error:
+        assert error.message == "Bad definition."
+
+    try:
+        parse("{")
+        assert False
+    except GraphqlError as error:
+        assert error.message == "Out of tokens."
