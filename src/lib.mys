@@ -30,28 +30,31 @@ class _End(_Token):
 
 class _Tokens:
     _tokens: [_Token]
-    pos: u64
+    _pos: u64
 
     func __init__(self, tokens: [_Token]):
         self._tokens = tokens
-        self.pos = 0
+        self._pos = 0
 
     func available(self) -> bool:
-        return self.pos < len(self._tokens)
+        return self._pos < len(self._tokens)
 
     func get(self) -> _Token:
         if not self.available():
             raise GraphqlError("Out of tokens.")
 
-        self.pos += 1
+        self._pos += 1
 
-        return self._tokens[self.pos - 1]
+        return self._tokens[self._pos - 1]
 
     func peek(self) -> _Token:
         if not self.available():
             raise GraphqlError("Out of tokens.")
 
-        return self._tokens[self.pos]
+        return self._tokens[self._pos]
+
+    func unget(self):
+        self._pos -= 1
 
 class Document:
     definitions: [Definition]
@@ -202,6 +205,8 @@ func _parse_name(tokens: _Tokens) -> string:
         case _Name() as name_token:
             return name_token.value
         case _:
+            tokens.unget()
+
             return None
 
 func _parse_field(tokens: _Tokens) -> Field:
@@ -262,11 +267,9 @@ func _parse_operation_type(tokens: _Tokens) -> string:
     return operation_type
 
 func _parse_operation_definition(tokens: _Tokens) -> OperationDefinition:
-    pos = tokens.pos
     operation_type = _parse_operation_type(tokens)
 
     if operation_type is None:
-        tokens.pos = pos
         name: string = None
     else:
         name = _parse_name(tokens)
@@ -505,6 +508,21 @@ func test_introspection_query():
 
 @test
 func test_operation_type():
+    document = parse("query {\n"
+                     "  packages {\n"
+                     "    name\n"
+                     "  }\n"
+                     "}")
+    assert len(document.definitions) == 1
+    operation_definition = (document
+                            .definitions[0]
+                            .executable_definition
+                            .operation_definition)
+    assert operation_definition.operation_type == "query"
+    assert operation_definition.name is None
+
+@test
+func test_operation_type_with_name():
     document = parse("query MyQuery {\n"
                      "  packages {\n"
                      "    name\n"
