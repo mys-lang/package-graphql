@@ -10,6 +10,9 @@ class _Token:
 class _Punctuator(_Token):
     value: char
 
+class _Dots(_Token):
+    pass
+
 class _Name(_Token):
     value: string
 
@@ -27,28 +30,28 @@ class _End(_Token):
 
 class _Tokens:
     _tokens: [_Token]
-    _pos: u64
+    pos: u64
 
     func __init__(self, tokens: [_Token]):
         self._tokens = tokens
-        self._pos = 0
+        self.pos = 0
 
     func available(self) -> bool:
-        return self._pos < len(self._tokens)
+        return self.pos < len(self._tokens)
 
     func get(self) -> _Token:
         if not self.available():
             raise GraphqlError("Out of tokens.")
 
-        self._pos += 1
+        self.pos += 1
 
-        return self._tokens[self._pos - 1]
+        return self._tokens[self.pos - 1]
 
     func peek(self) -> _Token:
         if not self.available():
             raise GraphqlError("Out of tokens.")
 
-        return self._tokens[self._pos]
+        return self._tokens[self.pos]
 
 class Document:
     definitions: [Definition]
@@ -60,6 +63,8 @@ class ExecutableDefinition:
     operation_definition: OperationDefinition
 
 class OperationDefinition:
+    operation_type: string
+    name: string
     selections: [Selection]
 
 class Selection:
@@ -105,6 +110,15 @@ func _tokenize_number(reader: StringReader) -> _Token:
 
     return _IntValue(value)
 
+func _tokenize_dots(reader: StringReader) -> _Token:
+    for _ in range(3):
+        ch = reader.get()
+
+        if ch != '.':
+            raise GraphqlError("No '.'.")
+
+    return _Dots()
+
 func _tokenize_string(reader: StringReader) -> _Token:
     value = ""
 
@@ -133,7 +147,8 @@ func _tokenize(document: string) -> _Tokens:
         elif ch in "!$&():=@[]{|}":
             token = _Punctuator(ch)
         elif ch == '.':
-            raise GraphqlError(f"Unsupported character '{ch}'")
+            reader.unget()
+            token = _tokenize_dots(reader)
         elif ch == '-' or ch.is_digit():
             reader.unget()
             token = _tokenize_number(reader)
@@ -235,13 +250,33 @@ func _parse_selection_set(tokens: _Tokens) -> [Selection]:
 
     return selections
 
+func _parse_operation_type(tokens: _Tokens) -> string:
+    operation_type = _parse_name(tokens)
+
+    if operation_type is None:
+        return None
+
+    if operation_type not in ["query", "mutation", "subscription"]:
+        raise GraphqlError(f"Bad operation '{operation_type}'.")
+
+    return operation_type
+
 func _parse_operation_definition(tokens: _Tokens) -> OperationDefinition:
+    pos = tokens.pos
+    operation_type = _parse_operation_type(tokens)
+
+    if operation_type is None:
+        tokens.pos = pos
+        name: string = None
+    else:
+        name = _parse_name(tokens)
+
     selections = _parse_selection_set(tokens)
 
     if selections is None:
         return None
 
-    return OperationDefinition(selections)
+    return OperationDefinition(operation_type, name, selections)
 
 func _parse_executable_definition(tokens: _Tokens) -> ExecutableDefinition:
     operation_definition = _parse_operation_definition(tokens)
@@ -375,3 +410,110 @@ func test_name():
                   .selections)
     assert len(selections) == 1
     assert selections[0].field.name == "foo_2"
+
+@test
+func test_introspection_query():
+    return
+    parse("query IntrospectionQuery {\n"
+          "  __schema {\n"
+          "    queryType { name }\n"
+          "    mutationType { name }\n"
+          "    subscriptionType { name }\n"
+          "    types {\n"
+          "      ...FullType\n"
+          "    }\n"
+          "    directives {\n"
+          "      name\n"
+          "      description\n"
+          "      locations\n"
+          "      args {\n"
+          "        ...InputValue\n"
+          "      }\n"
+          "    }\n"
+          "  }\n"
+          "}\n"
+          "fragment FullType on __Type {\n"
+          "  kind\n"
+          "  name\n"
+          "  description\n"
+          "  fields(includeDeprecated: true) {\n"
+          "    name\n"
+          "    description\n"
+          "    args {\n"
+          "      ...InputValue\n"
+          "    }\n"
+          "    type {\n"
+          "      ...TypeRef\n"
+          "    }\n"
+          "    isDeprecated\n"
+          "    deprecationReason\n"
+          "  }\n"
+          "  inputFields {\n"
+          "    ...InputValue\n"
+          "  }\n"
+          "  interfaces {\n"
+          "    ...TypeRef\n"
+          "  }\n"
+          "  enumValues(includeDeprecated: true) {\n"
+          "    name\n"
+          "    description\n"
+          "    isDeprecated\n"
+          "    deprecationReason\n"
+          "  }\n"
+          "  possibleTypes {\n"
+          "    ...TypeRef\n"
+          "  }\n"
+          "}\n"
+          "fragment InputValue on __InputValue {\n"
+          "  name\n"
+          "  description\n"
+          "  type { ...TypeRef }\n"
+          "  defaultValue\n"
+          "}\n"
+          "fragment TypeRef on __Type {\n"
+          "  kind\n"
+          "  name\n"
+          "  ofType {\n"
+          "    kind\n"
+          "    name\n"
+          "    ofType {\n"
+          "      kind\n"
+          "      name\n"
+          "      ofType {\n"
+          "        kind\n"
+          "        name\n"
+          "        ofType {\n"
+          "          kind\n"
+          "          name\n"
+          "          ofType {\n"
+          "            kind\n"
+          "            name\n"
+          "            ofType {\n"
+          "              kind\n"
+          "              name\n"
+          "              ofType {\n"
+          "                kind\n"
+          "                name\n"
+          "              }\n"
+          "            }\n"
+          "          }\n"
+          "        }\n"
+          "      }\n"
+          "    }\n"
+          "  }\n"
+          "}")
+
+@test
+func test_operation_type():
+    document = parse("query MyQuery {\n"
+                     "  packages {\n"
+                     "    name\n"
+                     "  }\n"
+                     "}")
+    assert len(document.definitions) == 1
+    operation_definition = (document
+                            .definitions[0]
+                            .executable_definition
+                            .operation_definition)
+    assert operation_definition.operation_type == "query"
+    assert operation_definition.name == "MyQuery"
