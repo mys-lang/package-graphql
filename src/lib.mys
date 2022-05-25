@@ -80,6 +80,7 @@ class Field:
 
 class Argument:
     name: string
+    value: string
 
 func _tokenize_name(reader: StringReader) -> _Token:
     name = ""
@@ -184,15 +185,23 @@ func _parse_arguments(tokens: _Tokens) -> [Argument]:
     while True:
         match tokens.get():
             case _Name() as name_token:
-                arguments.append(Argument(name_token.value))
-
                 match tokens.get():
                     case _Punctuator(value=':'):
                         pass
                     case _:
                         raise GraphqlError("No :.")
 
-                tokens.get()
+                value: string = None
+
+                match tokens.get():
+                    case _StringValue() as string_value_token:
+                        value = string_value_token.value
+                    case _IntValue() as int_value_token:
+                        pass
+                    case _:
+                        raise GraphqlError("No value.")
+
+                arguments.append(Argument(name_token.value, value))
             case _Punctuator(value=')'):
                 break
             case _:
