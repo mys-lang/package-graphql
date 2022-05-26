@@ -68,7 +68,17 @@ class ExecutableDefinition:
 class OperationDefinition:
     operation_type: string
     name: string
+    variable_definitions: [VariableDefinition]
     selections: [Selection]
+
+class VariableDefinition:
+    name: string
+    value: Type
+
+class Type:
+    name: string
+    types: [Type]
+    non_null: bool
 
 class Selection:
     field: Field
@@ -81,6 +91,7 @@ class Field:
 class Argument:
     name: string
     value: string
+    variable: string
 
 func _tokenize_name(reader: StringReader) -> _Token:
     name = ""
@@ -185,23 +196,22 @@ func _parse_arguments(tokens: _Tokens) -> [Argument]:
     while True:
         match tokens.get():
             case _Name() as name_token:
-                match tokens.get():
-                    case _Punctuator(value=':'):
-                        pass
-                    case _:
-                        raise GraphqlError("No :.")
+                _parse_colon(tokens)
 
                 value: string = None
+                variable: string = None
 
                 match tokens.get():
                     case _StringValue() as string_value_token:
                         value = string_value_token.value
                     case _IntValue() as int_value_token:
                         pass
+                    case _Punctuator(value='$'):
+                        variable = _parse_variable(tokens)
                     case _:
                         raise GraphqlError("No value.")
 
-                arguments.append(Argument(name_token.value, value))
+                arguments.append(Argument(name_token.value, value, variable))
             case _Punctuator(value=')'):
                 break
             case _:
@@ -275,20 +285,87 @@ func _parse_operation_type(tokens: _Tokens) -> string:
 
     return operation_type
 
+func _parse_non_null(tokens: _Tokens) -> bool:
+    match tokens.get():
+        case _Punctuator(value='!'):
+            return True
+        case _:
+            tokens.unget()
+
+            return False
+
+
+func _parse_type(tokens: _Tokens) -> Type:
+    match tokens.get():
+        case _Name() as name_token:
+            non_null = _parse_non_null(tokens)
+
+            return Type(name_token.value, None, non_null)
+        case _:
+            raise GraphqlError("No type name.")
+
+func _parse_variable(tokens: _Tokens) -> string:
+    match tokens.get():
+        case _Name() as name_token:
+            return name_token.value
+        case _:
+            raise GraphqlError("No variable name.")
+
+func _parse_colon(tokens: _Tokens):
+    match tokens.get():
+        case _Punctuator(value=':'):
+            pass
+        case _:
+            raise GraphqlError("No :.")
+
+func _parse_variable_definitions(tokens: _Tokens) -> [VariableDefinition]:
+    match tokens.peek():
+        case _Punctuator(value='('):
+            pass
+        case _:
+            return None
+
+    tokens.get()
+    variable_definitions = []
+
+    while True:
+        match tokens.get():
+            case _Punctuator(value='$'):
+                name = _parse_variable(tokens)
+                _parse_colon(tokens)
+                type = _parse_type(tokens)
+
+                if type is None:
+                    raise GraphqlError("No type.")
+
+                variable_definitions.append(VariableDefinition(name, type))
+            case _Punctuator(value=')'):
+                break
+            case _:
+                raise GraphqlError("No ).")
+
+    return variable_definitions
+
 func _parse_operation_definition(tokens: _Tokens) -> OperationDefinition:
+    name: string = None
+    variable_definitions: [VariableDefinition] = None
     operation_type = _parse_operation_type(tokens)
 
-    if operation_type is None:
-        name: string = None
-    else:
+    if operation_type is not None:
         name = _parse_name(tokens)
+
+        if name is not None:
+            variable_definitions = _parse_variable_definitions(tokens)
 
     selections = _parse_selection_set(tokens)
 
     if selections is None:
         return None
 
-    return OperationDefinition(operation_type, name, selections)
+    return OperationDefinition(operation_type,
+                               name,
+                               variable_definitions,
+                               selections)
 
 func _parse_executable_definition(tokens: _Tokens) -> ExecutableDefinition:
     operation_definition = _parse_operation_definition(tokens)
@@ -544,3 +621,41 @@ func test_operation_type_with_name():
                             .operation_definition)
     assert operation_definition.operation_type == "query"
     assert operation_definition.name == "MyQuery"
+
+@test
+func test_variable():
+    document = parse("query ExampleQuery($name: String!) {\n"
+                     "  standard_library {\n"
+                     "    package(name: $name) {\n"
+                     "      name\n"
+                     "    }\n"
+                     "  }\n"
+                     "}")
+    assert len(document.definitions) == 1
+    operation_definition = (document
+                            .definitions[0]
+                            .executable_definition
+                            .operation_definition)
+    assert len(operation_definition.variable_definitions) == 1
+    print(operation_definition.variable_definitions[0])
+    assert operation_definition.variable_definitions[0].name == "name"
+    assert operation_definition.variable_definitions[0].value.name == "String"
+    assert operation_definition.variable_definitions[0].value.non_null
+
+    document = parse("query ExampleQuery($count: Int) {\n"
+                     "  standard_library {\n"
+                     "    package(count: $count) {\n"
+                     "      name\n"
+                     "    }\n"
+                     "  }\n"
+                     "}")
+    assert len(document.definitions) == 1
+    operation_definition = (document
+                            .definitions[0]
+                            .executable_definition
+                            .operation_definition)
+    assert len(operation_definition.variable_definitions) == 1
+    print(operation_definition.variable_definitions[0])
+    assert operation_definition.variable_definitions[0].name == "count"
+    assert operation_definition.variable_definitions[0].value.name == "Int"
+    assert not operation_definition.variable_definitions[0].value.non_null
