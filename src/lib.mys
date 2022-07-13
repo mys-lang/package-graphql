@@ -3,8 +3,7 @@ from string import StringReader
 class GraphqlError(Error):
     message: string
 
-@trait
-class _Token:
+trait _Token:
     pass
 
 class _Punctuator(_Token):
