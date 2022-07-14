@@ -404,8 +404,7 @@ func parse(document: string) -> Document:
 
     return _parse_document(tokens)
 
-@test
-func test_parse_query():
+test parse_query():
     document = parse("\t\r"
                      "{\n"
                      "  foo(id: 10, name: \"kalle\") {\n"
@@ -439,8 +438,7 @@ func test_parse_query():
     assert selections[2].field.arguments is None
     assert selections[2].field.selections is None
 
-@test
-func test_spacex():
+test spacex():
     document = parse("{"
                      "  launchesPast(limit: 10) {"
                      "    mission_name"
@@ -473,8 +471,7 @@ func test_spacex():
     assert selections[3].field.selections[1].field.name == "home_port"
     assert selections[3].field.selections[2].field.name == "image"
 
-@test
-func test_bad_definition():
+test bad_definition():
     try:
         parse("{{name}}")
         assert False
@@ -487,8 +484,7 @@ func test_bad_definition():
     except GraphqlError as error:
         assert error.message == "Out of tokens."
 
-@test
-func test_name():
+test name():
     document = parse("{foo_2}")
     assert len(document.definitions) == 1
     selections = (document
@@ -499,8 +495,7 @@ func test_name():
     assert len(selections) == 1
     assert selections[0].field.name == "foo_2"
 
-@test
-func test_operation_type():
+test operation_type():
     document = parse("query {\n"
                      "  packages {\n"
                      "    name\n"
@@ -514,8 +509,7 @@ func test_operation_type():
     assert operation_definition.operation_type == "query"
     assert operation_definition.name is None
 
-@test
-func test_operation_type_with_name():
+test operation_type_with_name():
     document = parse("query MyQuery {\n"
                      "  packages {\n"
                      "    name\n"
@@ -529,8 +523,7 @@ func test_operation_type_with_name():
     assert operation_definition.operation_type == "query"
     assert operation_definition.name == "MyQuery"
 
-@test
-func test_variable():
+test variable():
     document = parse("query ExampleQuery($name: String!) {\n"
                      "  standard_library {\n"
                      "    package(name: $name) {\n"
@@ -567,8 +560,7 @@ func test_variable():
     assert operation_definition.variable_definitions[0].value.name == "Int"
     assert not operation_definition.variable_definitions[0].value.non_null
 
-@test
-func test_parse_schema():
+test parse_schema():
     return
     parse("type Query {"
           "  standard_library: StandardLibrary!"
