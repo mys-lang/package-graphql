@@ -29,14 +29,14 @@ class _End(_Token):
 
 class _Tokens:
     _tokens: [_Token]
-    _pos: u64
+    _pos: i64
 
     func __init__(self, tokens: [_Token]):
         self._tokens = tokens
         self._pos = 0
 
     func available(self) -> bool:
-        return self._pos < len(self._tokens)
+        return self._pos < self._tokens.length()
 
     func get(self) -> _Token:
         if not self.available():
