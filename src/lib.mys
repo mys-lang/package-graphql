@@ -413,21 +413,21 @@ test parse_query():
                      "    value\n"
                      "  }\n"
                      "}")
-    assert len(document.definitions) == 1
+    assert document.definitions.length() == 1
     selections = (document
                   .definitions[0]
                   .executable_definition
                   .operation_definition
                   .selections)
-    assert len(selections) == 1
+    assert selections.length() == 1
     selection = selections[0]
     assert selection.field.name == "foo"
     arguments = selection.field.arguments
-    assert len(arguments) == 2
+    assert arguments.length() == 2
     assert arguments[0].name == "id"
     assert arguments[1].name == "name"
     selections = selection.field.selections
-    assert len(selections) == 3
+    assert selections.length() == 3
     assert selections[0].field.name == "id"
     assert selections[0].field.arguments is None
     assert selections[0].field.selections is None
@@ -453,13 +453,13 @@ test spacex():
                      "    }"
                      "  }"
                      "}")
-    assert len(document.definitions) == 1
+    assert document.definitions.length() == 1
     selections = (document
                   .definitions[0]
                   .executable_definition
                   .operation_definition
                   .selections)
-    assert len(selections) == 1
+    assert selections.length() == 1
     assert selections[0].field.name == "launchesPast"
     selections = selections[0].field.selections
     assert selections[0].field.name == "mission_name"
@@ -486,13 +486,13 @@ test bad_definition():
 
 test name():
     document = parse("{foo_2}")
-    assert len(document.definitions) == 1
+    assert document.definitions.length() == 1
     selections = (document
                   .definitions[0]
                   .executable_definition
                   .operation_definition
                   .selections)
-    assert len(selections) == 1
+    assert selections.length() == 1
     assert selections[0].field.name == "foo_2"
 
 test operation_type():
@@ -501,7 +501,7 @@ test operation_type():
                      "    name\n"
                      "  }\n"
                      "}")
-    assert len(document.definitions) == 1
+    assert document.definitions.length() == 1
     operation_definition = (document
                             .definitions[0]
                             .executable_definition
@@ -515,7 +515,7 @@ test operation_type_with_name():
                      "    name\n"
                      "  }\n"
                      "}")
-    assert len(document.definitions) == 1
+    assert document.definitions.length() == 1
     operation_definition = (document
                             .definitions[0]
                             .executable_definition
@@ -531,12 +531,12 @@ test variable():
                      "    }\n"
                      "  }\n"
                      "}")
-    assert len(document.definitions) == 1
+    assert document.definitions.length() == 1
     operation_definition = (document
                             .definitions[0]
                             .executable_definition
                             .operation_definition)
-    assert len(operation_definition.variable_definitions) == 1
+    assert operation_definition.variable_definitions.length() == 1
     print(operation_definition.variable_definitions[0])
     assert operation_definition.variable_definitions[0].name == "name"
     assert operation_definition.variable_definitions[0].value.name == "String"
@@ -549,12 +549,12 @@ test variable():
                      "    }\n"
                      "  }\n"
                      "}")
-    assert len(document.definitions) == 1
+    assert document.definitions.length() == 1
     operation_definition = (document
                             .definitions[0]
                             .executable_definition
                             .operation_definition)
-    assert len(operation_definition.variable_definitions) == 1
+    assert operation_definition.variable_definitions.length() == 1
     print(operation_definition.variable_definitions[0])
     assert operation_definition.variable_definitions[0].name == "count"
     assert operation_definition.variable_definitions[0].value.name == "Int"
