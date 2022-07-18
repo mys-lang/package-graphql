@@ -65,9 +65,9 @@ class ExecutableDefinition:
     operation_definition: OperationDefinition
 
 class OperationDefinition:
-    operation_type: string
-    name: string
-    variable_definitions: [VariableDefinition]
+    operation_type: string?
+    name: string?
+    variable_definitions: [VariableDefinition]?
     selections: [Selection]
 
 class VariableDefinition:
@@ -76,7 +76,7 @@ class VariableDefinition:
 
 class Type:
     name: string
-    types: [Type]
+    types: [Type]?
     non_null: bool
 
 class Selection:
@@ -84,13 +84,13 @@ class Selection:
 
 class Field:
     name: string
-    arguments: [Argument]
-    selections: [Selection]
+    arguments: [Argument]?
+    selections: [Selection]?
 
 class Argument:
     name: string
-    value: string
-    variable: string
+    value: string?
+    variable: string?
 
 func _tokenize_name(reader: StringReader) -> _Token:
     name = ""
@@ -150,7 +150,7 @@ func _tokenize_string(reader: StringReader) -> _Token:
 
 func _tokenize(document: string) -> _Tokens:
     reader = StringReader(document)
-    token: _Token = None
+    token: _Token? = None
     tokens: [_Token] = []
 
     while True:
@@ -182,7 +182,7 @@ func _tokenize(document: string) -> _Tokens:
 
     return _Tokens(tokens)
 
-func _parse_arguments(tokens: _Tokens) -> [Argument]:
+func _parse_arguments(tokens: _Tokens) -> [Argument]?:
     match tokens.peek():
         case _Punctuator(value='('):
             pass
@@ -197,8 +197,8 @@ func _parse_arguments(tokens: _Tokens) -> [Argument]:
             case _Name() as name_token:
                 _parse_colon(tokens)
 
-                value: string = None
-                variable: string = None
+                value: string? = None
+                variable: string? = None
 
                 match tokens.get():
                     case _StringValue() as string_value_token:
@@ -218,7 +218,7 @@ func _parse_arguments(tokens: _Tokens) -> [Argument]:
 
     return arguments
 
-func _parse_name(tokens: _Tokens) -> string:
+func _parse_name(tokens: _Tokens) -> string?:
     match tokens.get():
         case _Name() as name_token:
             return name_token.value
@@ -227,7 +227,7 @@ func _parse_name(tokens: _Tokens) -> string:
 
             return None
 
-func _parse_field(tokens: _Tokens) -> Field:
+func _parse_field(tokens: _Tokens) -> Field?:
     name = _parse_name(tokens)
 
     if name is None:
@@ -238,7 +238,7 @@ func _parse_field(tokens: _Tokens) -> Field:
 
     return Field(name, arguments, selections)
 
-func _parse_selection(tokens: _Tokens) -> Selection:
+func _parse_selection(tokens: _Tokens) -> Selection?:
     field = _parse_field(tokens)
 
     if field is None:
@@ -246,7 +246,7 @@ func _parse_selection(tokens: _Tokens) -> Selection:
 
     return Selection(field)
 
-func _parse_selection_set(tokens: _Tokens) -> [Selection]:
+func _parse_selection_set(tokens: _Tokens) -> [Selection]?:
     selections: [Selection] = []
 
     match tokens.peek():
@@ -273,7 +273,7 @@ func _parse_selection_set(tokens: _Tokens) -> [Selection]:
 
     return selections
 
-func _parse_operation_type(tokens: _Tokens) -> string:
+func _parse_operation_type(tokens: _Tokens) -> string?:
     operation_type = _parse_name(tokens)
 
     if operation_type is None:
@@ -317,7 +317,7 @@ func _parse_colon(tokens: _Tokens):
         case _:
             raise GraphqlError("No :.")
 
-func _parse_variable_definitions(tokens: _Tokens) -> [VariableDefinition]:
+func _parse_variable_definitions(tokens: _Tokens) -> [VariableDefinition]?:
     match tokens.peek():
         case _Punctuator(value='('):
             pass
@@ -345,9 +345,9 @@ func _parse_variable_definitions(tokens: _Tokens) -> [VariableDefinition]:
 
     return variable_definitions
 
-func _parse_operation_definition(tokens: _Tokens) -> OperationDefinition:
-    name: string = None
-    variable_definitions: [VariableDefinition] = None
+func _parse_operation_definition(tokens: _Tokens) -> OperationDefinition?:
+    name: string? = None
+    variable_definitions: [VariableDefinition]? = None
     operation_type = _parse_operation_type(tokens)
 
     if operation_type is not None:
@@ -366,7 +366,7 @@ func _parse_operation_definition(tokens: _Tokens) -> OperationDefinition:
                                variable_definitions,
                                selections)
 
-func _parse_executable_definition(tokens: _Tokens) -> ExecutableDefinition:
+func _parse_executable_definition(tokens: _Tokens) -> ExecutableDefinition?:
     operation_definition = _parse_operation_definition(tokens)
 
     if operation_definition is None:
@@ -374,7 +374,7 @@ func _parse_executable_definition(tokens: _Tokens) -> ExecutableDefinition:
 
     return ExecutableDefinition(operation_definition)
 
-func _parse_definition(tokens: _Tokens) -> Definition:
+func _parse_definition(tokens: _Tokens) -> Definition?:
     executable_definition = _parse_executable_definition(tokens)
 
     if executable_definition is None:
