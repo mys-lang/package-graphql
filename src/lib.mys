@@ -333,10 +333,6 @@ func _parse_variable_definitions(tokens: _Tokens) -> [VariableDefinition]?:
                 name = _parse_variable(tokens)
                 _parse_colon(tokens)
                 type = _parse_type(tokens)
-
-                if type is None:
-                    raise GraphqlError("No type.")
-
                 variable_definitions.append(VariableDefinition(name, type))
             case _Punctuator(value=')'):
                 break
