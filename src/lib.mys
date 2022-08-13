@@ -190,7 +190,7 @@ func _parse_arguments(tokens: _Tokens) -> [Argument]?:
             return None
 
     tokens.get()
-    arguments = []
+    arguments: [Argument]= []
 
     while True:
         match tokens.get():
@@ -325,7 +325,7 @@ func _parse_variable_definitions(tokens: _Tokens) -> [VariableDefinition]?:
             return None
 
     tokens.get()
-    variable_definitions = []
+    variable_definitions: [VariableDefinition] = []
 
     while True:
         match tokens.get():
